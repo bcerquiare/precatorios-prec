@@ -4,17 +4,30 @@
   "license": "MIT",
   "scripts": {},
   "private": true,
-  "dependencies": {},
   "devDependencies": {
+    "@nx/esbuild": "22.5.4",
     "@nx/js": "22.5.4",
+    "@nx/node": "^22.5.4",
     "@swc-node/register": "~1.11.1",
     "@swc/core": "~1.15.5",
     "@swc/helpers": "~0.5.18",
+    "@types/node": "20.19.9",
+    "esbuild": "^0.19.2",
     "nx": "22.5.4",
     "tslib": "^2.3.0",
     "typescript": "~5.9.2"
   },
   "workspaces": [
-    "packages/*"
-  ]
+    "packages/*",
+    "apps/*"
+  ],
+  "dependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "adm-zip": "^0.5.16",
+    "cheerio": "^1.2.0",
+    "got": "^14.6.6",
+    "pdf-parse": "^2.4.5",
+    "puppeteer": "^24.39.0",
+    "tough-cookie": "^6.0.0"
+  }
 }
