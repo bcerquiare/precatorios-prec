@@ -1,39 +1,15 @@
+networks:
+  precatorios-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  shared_tmp_files:
+
 services:
-  app:
-    build:
-      context: .
-      args:
-        APP_NAME: app
-    container_name: precatorios-app
-    restart: unless-stopped
-    env_file:
-      - .env
-    ports:
-      - "${APP_PORT}:${APP_PORT}"
-    environment:
-      - TZ=America/Sao_Paulo
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  queue:
-    build:
-      context: .
-      args:
-        APP_NAME: queue
-    container_name: precatorios-queue
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - TZ=America/Sao_Paulo
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  postgres:
+  db-postgres:
     image: postgres:17
-    container_name: precatorios-postgres
+    container_name: precatorios-db-postgres
     restart: unless-stopped
     env_file:
       - .env
@@ -41,15 +17,99 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      TZ: America/Sao_Paulo
+      PGTZ: America/Sao_Paulo
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - precatorios-network
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-volumes:
-  postgres_data:
+  app-scheduler:
+    build:
+      context: .
+      args:
+        APP_NAME: scheduler
+    container_name: precatorios-app-scheduler
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Sao_Paulo
+    networks:
+      - precatorios-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+
+  worker-core:
+    build:
+      context: .
+      args:
+        APP_NAME: worker-core
+    container_name: precatorios-worker-core
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Sao_Paulo
+    networks:
+      - precatorios-network
+    volumes:
+      - shared_tmp_files:/app/tmp
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+
+  worker-puppeteer:
+    build:
+      context: .
+      dockerfile: Dockerfile.puppeteer
+      args:
+        APP_NAME: worker-puppeteer
+    container_name: precatorios-worker-puppeteer
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Sao_Paulo
+    networks:
+      - precatorios-network
+    volumes:
+      - shared_tmp_files:/app/tmp
+    init: true
+    shm_size: 1g
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 3g
+    depends_on:
+      db-postgres:
+        condition: service_healthy
